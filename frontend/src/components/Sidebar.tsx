@@ -16,7 +16,7 @@
  */
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Plus,
   MessageSquare,
@@ -46,10 +46,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   className,
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     sessions,
-    currentSession,
-    setCurrentSession,
     createSession,
     deleteSession,
     updateSessionTitle,
@@ -61,9 +60,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [editingTitle, setEditingTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Define the prefix for session URLs
+  const SESSION_URL_PREFIX = '/c/';
+
+  // Extract current session ID from URL using useParams
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const currentSessionIdFromUrl = location.pathname.startsWith(
+    SESSION_URL_PREFIX
+  )
+    ? sessionId
+    : null;
+
   const handleCreateSession = async () => {
     if (!selectedModel) return;
-    await createSession(selectedModel);
+    const newSession = await createSession(selectedModel);
+    if (newSession) {
+      navigate(`/c/${newSession.id}`, { replace: true });
+    }
     // On mobile, close sidebar after creating session
     if (window.innerWidth < 768) {
       onClose();
@@ -71,25 +84,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSelectSession = (session: ChatSession) => {
-    setCurrentSession(session);
+    navigate(`/c/${session.id}`, { replace: true });
     // On mobile, close sidebar after selecting session
     if (window.innerWidth < 768) {
       onClose();
     }
   };
-
   const handleDeleteSession = async (
     sessionId: string,
     e: React.MouseEvent
   ) => {
     e.stopPropagation();
-    console.log('Delete session clicked:', sessionId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Delete session clicked:', sessionId);
+    }
 
     if (window.confirm('Are you sure you want to delete this chat?')) {
       try {
-        console.log('Attempting to delete session:', sessionId);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Attempting to delete session:', sessionId);
+        }
+
+        // Check if we're deleting the current session
+        const isCurrentSession = currentSessionIdFromUrl === sessionId;
+
         await deleteSession(sessionId);
-        console.log('Session deleted successfully');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Session deleted successfully');
+        }
+
+        // If we deleted the current session, navigate to another session or root
+        if (isCurrentSession) {
+          const remainingSessions = sessions.filter(s => s.id !== sessionId);
+          if (remainingSessions.length > 0) {
+            navigate(`/c/${remainingSessions[0].id}`, { replace: true });
+          } else {
+            navigate('/', { replace: true });
+          }
+        }
       } catch (_error) {
         console.error('Error deleting session:', _error);
       }
@@ -268,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       className={cn(
                         'group relative rounded-xl p-4 cursor-pointer transition-all duration-200',
                         'hover:bg-white dark:hover:bg-dark-200 hover:shadow-sm',
-                        currentSession?.id === session.id &&
+                        currentSessionIdFromUrl === session.id &&
                           'bg-white dark:bg-dark-200 shadow-sm border border-primary-200 dark:border-primary-800 ring-1 ring-primary-100 dark:ring-primary-900'
                       )}
                       onClick={() => handleSelectSession(session)}
