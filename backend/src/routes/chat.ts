@@ -19,6 +19,11 @@ import express, { Request, Response } from 'express';
 import chatService from '../services/chatService.js';
 import ollamaService from '../services/ollamaService.js';
 import pluginService from '../services/pluginService.js';
+import preferencesService from '../services/preferencesService.js';
+import {
+  mergeGenerationOptions,
+  extractStatistics,
+} from '../utils/generationUtils.js';
 import {
   ApiResponse,
   ChatSession,
@@ -310,12 +315,21 @@ router.post(
       let response: OllamaChatResponse;
       let assistantContent: string;
 
+      // Get user's preferred generation options
+      const userGenerationOptions = preferencesService.getGenerationOptions();
+
+      // Merge user preferences with request options (request options take precedence)
+      const mergedOptions = mergeGenerationOptions(
+        userGenerationOptions,
+        options
+      );
+
       // Prepare common chat request for Ollama (used in both fallback and direct cases)
       const chatRequest = {
         model: session.model,
         messages: ollamaMessages,
         stream: false,
-        ...options,
+        options: mergedOptions as Record<string, unknown>,
       };
 
       // Check if there's an active plugin for this model
@@ -367,11 +381,13 @@ router.post(
         assistantContent = response.message.content;
       }
 
-      // Add assistant response to session
+      // Add assistant response to session with statistics
+      const statistics = extractStatistics(response);
       const assistantMessage = chatService.addMessage(sessionId, {
         role: 'assistant',
         content: assistantContent,
         model: session.model,
+        statistics,
       });
 
       if (!assistantMessage) {
@@ -452,11 +468,20 @@ router.post(
         content: message,
       });
 
+      // Get user's preferred generation options
+      const userGenerationOptions = preferencesService.getGenerationOptions();
+
+      // Merge user preferences with request options (request options take precedence)
+      const mergedOptions = mergeGenerationOptions(
+        userGenerationOptions,
+        options
+      );
+
       const chatRequest = {
         model: session.model,
         messages: ollamaMessages,
         stream: true,
-        ...options,
+        options: mergedOptions as Record<string, unknown>,
       };
 
       let fullResponse = '';

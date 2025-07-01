@@ -22,7 +22,41 @@ export interface UserPreferences {
   defaultModel: string;
   theme: 'light' | 'dark';
   systemMessage: string;
-  // Future preferences can be added here
+  generationOptions: {
+    // Core parameters
+    temperature?: number; // 0.0-2.0, default 0.8
+    top_p?: number; // 0.0-1.0, default 0.9
+    top_k?: number; // 1-100, default 40
+    min_p?: number; // 0.0-1.0, default 0.0
+    typical_p?: number; // 0.0-1.0, default 0.7
+
+    // Generation control
+    num_predict?: number; // Number of tokens to predict, default 128
+    seed?: number; // Random seed for reproducible outputs
+    repeat_last_n?: number; // How far back to look for repetition, default 64
+    repeat_penalty?: number; // Penalty for repetition, default 1.1
+    presence_penalty?: number; // Penalty for token presence, default 0.0
+    frequency_penalty?: number; // Penalty for token frequency, default 0.0
+    penalize_newline?: boolean; // Penalize newlines, default true
+
+    // Context and processing
+    num_ctx?: number; // Context window size, default 2048
+    num_batch?: number; // Batch size for processing, default 512
+    num_keep?: number; // Number of tokens to keep from prompt
+
+    // Advanced options
+    stop?: string[]; // Stop sequences
+    numa?: boolean; // Enable NUMA support
+    num_thread?: number; // Number of threads to use
+    num_gpu?: number; // Number of GPU layers
+    main_gpu?: number; // Main GPU to use
+    use_mmap?: boolean; // Use memory mapping
+
+    // Model behavior
+    format?: string | Record<string, unknown>; // Response format (json, etc.)
+    raw?: boolean; // Skip prompt templating
+    keep_alive?: string; // Keep model in memory duration
+  };
 }
 
 class PreferencesService {
@@ -31,6 +65,41 @@ class PreferencesService {
     defaultModel: '',
     theme: 'light',
     systemMessage: 'You are a helpful assistant.',
+    generationOptions: {
+      // Core parameters
+      temperature: 0.8,
+      top_p: 0.9,
+      top_k: 40,
+      min_p: 0.0,
+      typical_p: 0.7,
+
+      // Generation control
+      num_predict: 128,
+      seed: undefined,
+      repeat_last_n: 64,
+      repeat_penalty: 1.1,
+      presence_penalty: 0.0,
+      frequency_penalty: 0.0,
+      penalize_newline: true,
+
+      // Context and processing
+      num_ctx: 2048,
+      num_batch: 512,
+      num_keep: undefined,
+
+      // Advanced options
+      stop: undefined,
+      numa: undefined,
+      num_thread: undefined,
+      num_gpu: undefined,
+      main_gpu: undefined,
+      use_mmap: true,
+
+      // Model behavior
+      format: undefined,
+      raw: undefined,
+      keep_alive: undefined,
+    },
   };
 
   constructor() {
@@ -97,12 +166,35 @@ class PreferencesService {
     return this.updatePreferences({ systemMessage: message });
   }
 
+  setGenerationOptions(
+    options: Partial<UserPreferences['generationOptions']>
+  ): UserPreferences {
+    const currentPreferences = this.getPreferences();
+    const updatedGenerationOptions = {
+      ...currentPreferences.generationOptions,
+      ...options,
+    };
+    return this.updatePreferences({
+      generationOptions: updatedGenerationOptions,
+    });
+  }
+
   getDefaultModel(): string {
     return this.getPreferences().defaultModel;
   }
 
   getSystemMessage(): string {
     return this.getPreferences().systemMessage;
+  }
+
+  getGenerationOptions(): UserPreferences['generationOptions'] {
+    return this.getPreferences().generationOptions;
+  }
+
+  resetGenerationOptions(): UserPreferences {
+    return this.updatePreferences({
+      generationOptions: this.defaultPreferences.generationOptions,
+    });
   }
 }
 
