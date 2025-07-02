@@ -86,6 +86,13 @@ export const useAppStore = create<AppState>()(
           top_k: 40,
           num_predict: 1024,
         },
+        embeddingSettings: {
+          enabled: false,
+          model: 'nomic-embed-text',
+          chunkSize: 1000,
+          chunkOverlap: 200,
+          similarityThreshold: 0.3,
+        },
       },
       setPreferences: newPreferences =>
         set(state => ({
